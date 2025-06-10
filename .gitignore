@@ -44,4 +44,7 @@ Thumbs.db
 # Project specific
 example_images/
 output/
-temp/ 
+temp/
+
+# Gradio
+.gradio/ 
