@@ -1,5 +1,6 @@
 import google.generativeai as genai
-from typing import Dict, Any, List
+from typing import Dict, Optional
+import os
 import json
 import time
 from google.api_core import retry
@@ -7,19 +8,22 @@ import logging
 
 class GeminiInterface:
     def __init__(self, api_key: str):
-        """初始化Gemini API介面"""
+        """初始化 Gemini 介面"""
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-pro')
+        self.model = genai.GenerativeModel('gemini-1.5-pro-latest')
         
-        # 定義可用的圖像處理操作
-        self.available_operations = {
-            "gamma": "調整圖像的伽馬值",
-            "contrast": "調整圖像的對比度",
-            "brightness": "調整圖像的亮度",
-            "saturation": "調整圖像的飽和度",
+        # 操作描述映射
+        self.operation_descriptions = {
+            "gamma": "伽馬值調整",
+            "contrast": "對比度調整",
+            "brightness": "亮度調整",
+            "saturation": "飽和度調整",
             "auto_wb": "自動白平衡",
             "denoise": "降噪處理",
-            "sharpen": "銳化處理"
+            "sharpen": "銳化處理",
+            "super_resolution": "超分辨率處理",
+            "style_transfer": "風格遷移",
+            "restoration": "圖像修復"
         }
         
         # 設置日誌
@@ -52,66 +56,37 @@ class GeminiInterface:
                 time.sleep(5)  # 減少等待時間
             raise
 
-    def parse_instruction(self, instruction: str) -> Dict[str, Any]:
-        """解析使用者的自然語言指令"""
+    def parse_instruction(self, instruction: str) -> Optional[Dict]:
+        """解析自然語言指令"""
+        prompt = f"""
+        請分析以下圖像處理指令，並返回相應的處理參數。
+        指令：{instruction}
+        
+        請返回一個字典，包含以下可能的參數：
+        - gamma: 伽馬值（0.5-2.0）
+        - contrast: 對比度（0.5-1.5）
+        - brightness: 亮度（-50到50）
+        - saturation: 飽和度（0.5-1.5）
+        - auto_wb: 是否自動白平衡（True/False）
+        - denoise: 是否降噪（True/False）
+        - sharpen: 是否銳化（True/False）
+        - super_resolution: 是否進行超分辨率處理（True/False）
+        - style_transfer: 是否進行風格遷移（True/False）
+        - restoration: 是否進行圖像修復（True/False）
+        
+        只返回存在的參數，不存在的參數請不要包含在返回結果中。
+        請確保返回的是有效的 Python 字典格式。
+        """
+        
         try:
-            # 簡單的關鍵字匹配
-            operations = {}
-            
-            # 檢查白平衡相關指令
-            if any(keyword in instruction.lower() for keyword in ["白平衡", "顏色", "色調", "色溫"]):
-                operations["auto_wb"] = True
-            
-            # 檢查降噪相關指令
-            if any(keyword in instruction.lower() for keyword in ["雜訊", "噪點", "降噪", "去噪"]):
-                operations["denoise"] = True
-            
-            # 檢查銳化相關指令
-            if any(keyword in instruction.lower() for keyword in ["清晰", "銳化", "增強"]):
-                operations["sharpen"] = True
-            
-            # 檢查亮度和對比度相關指令
-            if any(keyword in instruction.lower() for keyword in ["亮", "暗"]):
-                operations["brightness"] = 10 if "亮" in instruction else -10
-            if any(keyword in instruction.lower() for keyword in ["對比度", "對比"]):
-                operations["contrast"] = 1.2
-            
-            # 如果沒有匹配到任何操作，使用 Gemini API
-            if not operations:
-                prompt = f"""
-                你是一個圖像處理助手。請根據以下指令，判斷需要執行哪些圖像處理操作。
-                可用的操作包括：
-                {json.dumps(self.available_operations, ensure_ascii=False, indent=2)}
-
-                請以JSON格式返回需要執行的操作及其參數。例如：
-                {{
-                    "operations": {{
-                        "gamma": 1.2,
-                        "contrast": 1.1,
-                        "brightness": 10,
-                        "saturation": 1.2,
-                        "auto_wb": true,
-                        "denoise": true,
-                        "sharpen": true
-                    }}
-                }}
-
-                使用者指令：{instruction}
-                """
-                
-                response_text = self._call_gemini_api(prompt)
-                result = json.loads(response_text)
-                operations = result.get("operations", {})
-            
-            return operations
-            
-        except json.JSONDecodeError:
-            self.logger.error("JSON 解析錯誤")
-            return {}
+            response = self.model.generate_content(prompt)
+            # 解析返回的字典
+            # 這裡需要根據實際的返回格式進行調整
+            return eval(response.text)
         except Exception as e:
-            self.logger.error(f"指令解析錯誤: {str(e)}")
-            return {}
-
+            self.logger.error(f"解析指令時出錯：{str(e)}")
+            return None
+            
     def get_operation_description(self, operation: str) -> str:
         """獲取操作的描述"""
-        return self.available_operations.get(operation, "未知操作") 
+        return self.operation_descriptions.get(operation, operation) 

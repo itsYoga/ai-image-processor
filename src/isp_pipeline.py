@@ -1,10 +1,14 @@
 """
-ISP (Image Signal Processing) Pipeline implementation
-ISP（影像信號處理）管道實現
+Image Signal Processing Pipeline
+圖像信號處理流水線
 """
 
 import cv2
 import numpy as np
+from .models.super_resolution import SuperResolution
+from .models.style_transfer import StyleTransfer
+from .models.image_restoration import ImageRestoration
+from .models.denoising import Denoising
 
 class ISPPipeline:
     """
@@ -21,6 +25,12 @@ class ISPPipeline:
         self.processed_image = None
         self.gamma = 2.2  # Standard gamma value 標準伽馬值
         self.wb_gains = [1.0, 1.0, 1.0]  # White balance gains 白平衡增益
+        
+        # 初始化深度學習模型
+        self.sr_model = SuperResolution()
+        self.style_model = StyleTransfer()
+        self.restoration_model = ImageRestoration()
+        self.denoising_model = Denoising()
         
     def load_raw_image(self, image_path):
         """
@@ -153,3 +163,85 @@ class ISPPipeline:
             return False
         
         return self.processed_image 
+
+    def process(self, image, operations):
+        """
+        處理圖像
+        
+        Args:
+            image: 輸入圖像
+            operations: 處理操作列表
+            
+        Returns:
+            處理後的圖像
+        """
+        result = image.copy()
+        
+        for op in operations:
+            if op['type'] == 'super_resolution':
+                result = self.sr_model.enhance(result, scale=op.get('scale', 4))
+                
+            elif op['type'] == 'style_transfer':
+                result = self.style_model.transfer_style(result, op.get('style_type', 'default'))
+                
+            elif op['type'] == 'image_restoration':
+                mask = op.get('mask', None)
+                result = self.restoration_model.restore(result, mask)
+                
+            elif op['type'] == 'denoising':
+                noise_level = op.get('noise_level', 25)
+                result = self.denoising_model.denoise(result, noise_level)
+                
+            elif op['type'] == 'traditional':
+                # 傳統圖像處理操作
+                if op['name'] == 'auto_exposure':
+                    result = self._auto_exposure(result)
+                elif op['name'] == 'auto_wb':
+                    result = self._auto_white_balance(result)
+                elif op['name'] == 'edge_detection':
+                    result = self._edge_detection(result)
+                elif op['name'] == 'feature_detection':
+                    result = self._feature_detection(result)
+                elif op['name'] == 'enhancement':
+                    result = self._enhance_image(result)
+                elif op['name'] == 'noise_reduction':
+                    result = self._reduce_noise(result)
+                elif op['name'] == 'segmentation':
+                    result = self._segment_image(result)
+                    
+        return result
+    
+    def _auto_exposure(self, image):
+        """自動曝光調整"""
+        # 實現自動曝光調整邏輯
+        return image
+    
+    def _auto_white_balance(self, image):
+        """自動白平衡"""
+        # 實現自動白平衡邏輯
+        return image
+    
+    def _edge_detection(self, image):
+        """邊緣檢測"""
+        # 實現邊緣檢測邏輯
+        return image
+    
+    def _feature_detection(self, image):
+        """特徵檢測"""
+        # 實現特徵檢測邏輯
+        return image
+    
+    def _enhance_image(self, image):
+        """圖像增強"""
+        # 實現圖像增強邏輯
+        return image
+    
+    def _reduce_noise(self, image):
+        """降噪處理"""
+        # 實現降噪處理邏輯
+        return image
+    
+    def _segment_image(self, image):
+        """圖像分割"""
+        # 實現圖像分割邏輯
+        return image 
